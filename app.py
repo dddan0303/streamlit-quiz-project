@@ -3,6 +3,7 @@ import csv
 import os
 from datetime import datetime
 
+# 제출자 정보
 STUDENT_ID = "2025404008"
 STUDENT_NAME = "김다은"
 
