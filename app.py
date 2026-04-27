@@ -15,7 +15,6 @@ st.set_page_config(
 )
 
 
-# 캐싱 함수
 @st.cache_data
 def load_quiz_data():
     return [
@@ -152,6 +151,13 @@ def load_saved_results():
         return list(reader)
 
 
+def reset_quiz():
+    st.session_state.current_question = 0
+    st.session_state.answers = []
+    st.session_state.quiz_finished = False
+    st.session_state.result_saved = False
+
+
 # 세션 상태 초기화
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -231,10 +237,7 @@ if not st.session_state.logged_in:
     if login_btn:
         if st.session_state.login_id == "dan" and st.session_state.login_pw == "1234":
             st.session_state.logged_in = True
-            st.session_state.current_question = 0
-            st.session_state.answers = []
-            st.session_state.quiz_finished = False
-            st.session_state.result_saved = False
+            reset_quiz()
             st.success("로그인 성공!")
             st.rerun()
         else:
@@ -281,11 +284,34 @@ else:
             unsafe_allow_html=True
         )
 
+        options = list(question_data["options"].keys())
+
+        # 이전에 선택했던 답변이 있으면 그 값을 기본 선택으로 유지
+        if len(st.session_state.answers) > current:
+            saved_type = st.session_state.answers[current]
+            default_index = 0
+
+            for option_text, option_type in question_data["options"].items():
+                if option_type == saved_type:
+                    default_index = options.index(option_text)
+                    break
+        else:
+            default_index = 0
+
         selected = st.radio(
             "답변을 선택하세요",
-            list(question_data["options"].keys()),
+            options,
+            index=default_index,
             key=f"radio_{current}"
         )
+
+        selected_type = question_data["options"][selected]
+
+        # 현재 선택값을 세션에 바로 저장해서 이전/다음 이동 시 유지
+        if len(st.session_state.answers) > current:
+            st.session_state.answers[current] = selected_type
+        else:
+            st.session_state.answers.append(selected_type)
 
         col1, col2, col3 = st.columns(3)
 
@@ -296,33 +322,16 @@ else:
 
         with col2:
             if st.button("처음부터", use_container_width=True):
-                st.session_state.current_question = 0
-                st.session_state.answers = []
-                st.session_state.quiz_finished = False
-                st.session_state.result_saved = False
+                reset_quiz()
                 st.rerun()
 
         with col3:
             if current < total_questions - 1:
                 if st.button("다음 →", use_container_width=True):
-                    answer_type = question_data["options"][selected]
-
-                    if len(st.session_state.answers) > current:
-                        st.session_state.answers[current] = answer_type
-                    else:
-                        st.session_state.answers.append(answer_type)
-
                     st.session_state.current_question += 1
                     st.rerun()
             else:
                 if st.button("결과 보기", use_container_width=True):
-                    answer_type = question_data["options"][selected]
-
-                    if len(st.session_state.answers) > current:
-                        st.session_state.answers[current] = answer_type
-                    else:
-                        st.session_state.answers.append(answer_type)
-
                     st.session_state.quiz_finished = True
                     st.rerun()
 
@@ -386,21 +395,15 @@ else:
 
         with col2:
             if st.button("다시 풀기", use_container_width=True):
-                st.session_state.current_question = 0
-                st.session_state.answers = []
-                st.session_state.quiz_finished = False
-                st.session_state.result_saved = False
+                reset_quiz()
                 st.rerun()
 
         with col3:
             if st.button("로그아웃", use_container_width=True):
                 st.session_state.logged_in = False
-                st.session_state.current_question = 0
-                st.session_state.answers = []
-                st.session_state.quiz_finished = False
                 st.session_state.login_id = ""
                 st.session_state.login_pw = ""
-                st.session_state.result_saved = False
+                reset_quiz()
                 st.rerun()
 
         saved_results = load_saved_results()
